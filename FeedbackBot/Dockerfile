@@ -1,13 +1,14 @@
 FROM python:3.13-alpine
 
-# Install ffmpeg (needed for audio conversion)
+# Install ffmpeg (needed for audio conversion) and uv
 RUN apk add --no-cache ffmpeg
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app
 
 # Install dependencies
-COPY pyproject.toml .
-RUN pip install --no-cache-dir .
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev
 
 # Copy application code
 COPY feedbackbot/ feedbackbot/
@@ -15,7 +16,6 @@ COPY feedbackbot/ feedbackbot/
 # Create data directories
 RUN mkdir -p data/recordings data/transcriptions
 
-# Expose the port
 EXPOSE 8000
 
-CMD ["python", "-m", "feedbackbot.main"]
+CMD ["uv", "run", "python", "-m", "feedbackbot.main"]
