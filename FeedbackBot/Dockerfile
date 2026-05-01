@@ -6,12 +6,12 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-# Install dependencies
+# Copy everything needed for install
 COPY pyproject.toml uv.lock README.md ./
-RUN uv sync --frozen --no-dev
-
-# Copy application code
 COPY feedbackbot/ feedbackbot/
+
+# Install dependencies (non-editable)
+RUN uv sync --frozen --no-dev --no-editable
 
 # Create data directories
 RUN mkdir -p data/recordings data/transcriptions
