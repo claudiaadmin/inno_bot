@@ -24,7 +24,8 @@
 import io
 
 import openai
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, Form, HTTPException, UploadFile
+from pydantic import BaseModel
 from openai.types.audio.transcription import Transcription
 from ulid import ULID
 
@@ -36,8 +37,11 @@ __all__ = ["transcribe_router"]
 transcribe_router: APIRouter = APIRouter()
 
 
-@transcribe_router.post("/transcribe/", response_model=TranscriptionResult)
-async def transcribe_audio(file: UploadFile) -> TranscriptionResult:
+@transcribe_router.post("/transcribe/", response_model=FeedbackResponse)
+async def transcribe_audio(
+    file: UploadFile,
+    username: str = Form(default="Anonymous"),
+) -> FeedbackResponse:
     """Endpoint to transcribe an uploaded audio file to text using OpenAI Whisper.
 
     Args:
@@ -71,12 +75,17 @@ async def transcribe_audio(file: UploadFile) -> TranscriptionResult:
         )
 
         # Save the audio and transcription data to the database
+        result = TranscriptionResult(text=transcription.text, username=username)
         database.save_transcription(
-            transcription=TranscriptionResult(text=transcription.text),
+            transcription=result,
             feedback_ulid=feedback_ulid,
         )
 
-        return TranscriptionResult(text=transcription.text)
+        return FeedbackResponse(
+            id=str(feedback_ulid),
+            text=result.text,
+            username=result.username,
+        )
 
     except openai.OpenAIError as err:
         raise HTTPException(
@@ -88,3 +97,71 @@ async def transcribe_audio(file: UploadFile) -> TranscriptionResult:
             status_code=500,
             detail=str(err),
         ) from err
+
+
+class FeedbackResponse(BaseModel):
+    """Response with feedback text and its ID for undo support."""
+
+    id: str
+    text: str
+    username: str
+
+
+class TextFeedbackRequest(BaseModel):
+    """Request body for typed text feedback."""
+
+    text: str
+    username: str = "Anonymous"
+
+
+@transcribe_router.post("/feedback/", response_model=FeedbackResponse)
+async def submit_text_feedback(body: TextFeedbackRequest) -> FeedbackResponse:
+    """Endpoint to submit typed text feedback directly (no audio).
+
+    Args:
+    ----
+        body: The text feedback and username.
+
+    Returns:
+    -------
+        FeedbackResponse: The saved feedback with its ID.
+
+    """
+    if not body.text.strip():
+        raise HTTPException(status_code=400, detail="Feedback text cannot be empty.")
+
+    feedback_ulid: ULID = ULID()
+    result = TranscriptionResult(text=body.text.strip(), username=body.username)
+    database.save_transcription(
+        transcription=result,
+        feedback_ulid=feedback_ulid,
+    )
+    return FeedbackResponse(
+        id=str(feedback_ulid),
+        text=result.text,
+        username=result.username,
+    )
+
+
+@transcribe_router.delete("/feedback/{feedback_id}")
+async def delete_feedback(feedback_id: str) -> dict[str, bool]:
+    """Delete a feedback entry by its ULID.
+
+    Args:
+    ----
+        feedback_id: The ULID string of the feedback to delete.
+
+    Returns:
+    -------
+        dict indicating success.
+
+    """
+    try:
+        ulid = ULID.from_str(feedback_id)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid feedback ID.") from err
+
+    deleted = database.delete_feedback(ulid)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Feedback not found.")
+    return {"deleted": True}

@@ -57,7 +57,15 @@ def load_transcriptions() -> dict[ULID, TranscriptionResult]:
             continue
         with transcription_file.open("r") as file:
             record_json: dict[str, str] = json.load(file)
-        transcriptions[record_id] = TranscriptionResult(**record_json)
+        result = TranscriptionResult(**record_json)
+
+        # Derive timestamp and day_of_week from ULID for older records
+        if not result.timestamp:
+            ulid_dt = record_id.datetime
+            result.timestamp = ulid_dt.isoformat()
+            result.day_of_week = ulid_dt.strftime("%A")
+
+        transcriptions[record_id] = result
 
     return transcriptions
 

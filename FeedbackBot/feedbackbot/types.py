@@ -23,18 +23,35 @@
 
 from pydantic import BaseModel
 
-__all__ = ["TranscriptionResult", "SummaryResult"]
+__all__ = ["TranscriptionResult", "GroupSummary", "DaySummary", "SummaryResult"]
 
 
 class TranscriptionResult(BaseModel):
     """Response of Whisper Model."""
 
     text: str
+    username: str = "Anonymous"
+    timestamp: str = ""
+    day_of_week: str = ""
+
+
+class GroupSummary(BaseModel):
+    """Summary for a single group on a single day."""
+
+    group: str
+    summary: str
+    keywords: list[str]
+    sentiment: str
+
+
+class DaySummary(BaseModel):
+    """Summary for a single day containing per-group breakdowns."""
+
+    day: str
+    groups: list[GroupSummary]
 
 
 class SummaryResult(BaseModel):
     """Response of ChatGPT (a Summary)."""
 
-    summary: str
-    keywords: list[str]
-    sentiment: str
+    days: list[DaySummary]

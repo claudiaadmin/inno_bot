@@ -22,11 +22,11 @@
 """Summarise the feedback text using OpenAI GPT-4o model."""
 
 import json
-import re
+from collections import defaultdict
 from pathlib import Path
 
 import openai
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from openai.types.chat import (
@@ -40,7 +40,7 @@ from starlette.requests import Request
 from ulid import ULID
 
 from feedbackbot import database
-from feedbackbot.types import SummaryResult, TranscriptionResult
+from feedbackbot.types import DaySummary, GroupSummary, SummaryResult, TranscriptionResult
 
 __all__ = ["summary_router"]
 
@@ -51,89 +51,85 @@ pug_templates_dir: Path = Path(__file__).parent.parent / "templates"
 templates: Jinja2Templates = Jinja2Templates(directory=str(pug_templates_dir))
 templates.env.add_extension(PyPugJSExtension)
 
-PROMPT: str = """Summarise all the feedback into a single summary containing a summary, keywords,
-    and sentiment analysis of the feedback. The input will be provided as a dictionary
-    ' of dictionaries with the following structure: {"ULID": {"text": "Feedback"}}.'
-    The output should be a dictionary with the following structure:
-    ' {"summary": "Summary of the feedback text", "keywords": ["Keyword1",'
-    ' "Keyword2"], "sentiment": "Positive/Negative/Neutral"}.'
-    Please take care to provide the correct format for the output as it needs to be
-    " automatically processed by the system."""
+PROMPT: str = """Summarise the feedback organized by day and group. The input is structured as:
+{"DayName": {"GroupName": ["feedback text 1", "feedback text 2"], ...}, ...}
+
+Return a JSON object with this exact structure:
+{"days": [{"day": "Monday", "groups": [{"group": "Group 1", "summary": "...", "keywords": ["k1", "k2"], "sentiment": "Positive/Negative/Neutral"}, ...]}, ...]}
+
+For each group on each day, provide a summary of the feedback, relevant keywords, and overall sentiment.
+If a day or group has no feedback, omit it. Ensure valid JSON output."""
 
 
 @summary_router.get("/summarise/", response_model=SummaryResult)
-async def summarise_feedback() -> SummaryResult:
-    """Endpoint to transcribe an uploaded audio file to text using OpenAI Whisper.
+async def summarise_feedback(
+    day: str | None = Query(default=None),
+) -> SummaryResult:
+    """Summarise feedback grouped by day of the week and user group.
 
-    Returns
+    Args:
+    ----
+        day: Optional day of the week filter (e.g. "Monday").
+
+    Returns:
     -------
-        SummaryResult: Summary of the feedback text.
+        SummaryResult: Per-day, per-group summary of the feedback.
 
     """
     try:
         transcriptions: dict[ULID, TranscriptionResult] = database.load_transcriptions()
-        transcripts: dict[str, dict[str, str]] = {
-            str(ulid): {"text": transcription.text}
-            for ulid, transcription in transcriptions.items()
-        }
+
+        # Group transcriptions by day_of_week, then by username (group)
+        grouped: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
+        for _ulid, t in transcriptions.items():
+            if day and t.day_of_week != day:
+                continue
+            grouped[t.day_of_week][t.username].append(t.text)
+
+        if not grouped:
+            return SummaryResult(days=[])
 
         model_input: list[ChatCompletionMessageParam] = [
             ChatCompletionSystemMessageParam(content=PROMPT, role="system"),
             ChatCompletionUserMessageParam(
                 role="user",
-                content=json.dumps(transcripts),
+                content=json.dumps(grouped),
             ),
         ]
 
-        # Send the audio file to OpenAI Whisper API for transcription
         response: ChatCompletion = openai.chat.completions.create(
             model="gpt-4o",
             messages=model_input,
             temperature=0.5,
+            response_format={"type": "json_object"},
         )
 
-        # Extract the summary, keywords, and sentiment from the response
-        json_pattern: str = r"\{(?:[^{}]*|\{[^{}]*\})*\}"
-
-        # Extract the JSON object from the response
         if not response.choices or not response.choices[0].message.content:
-            return SummaryResult(
-                summary="",
-                keywords=[],
-                sentiment="",
-            )
-        summary_response: str = response.choices[0].message.content
-        match: re.Match[str] | None = re.search(
-            pattern=json_pattern,
-            string=summary_response,
-        )
+            return SummaryResult(days=[])
 
-        default_summary: SummaryResult = SummaryResult(
-            summary="",
-            keywords=[],
-            sentiment="",
-        )
-        if not match:
-            return default_summary
+        raw: dict = json.loads(response.choices[0].message.content)
 
-        summary: dict[str, str | list[str]] = json.loads(match.group(0))
+        # Parse into structured models
+        days: list[DaySummary] = []
+        for day_data in raw.get("days", []):
+            groups: list[GroupSummary] = []
+            for group_data in day_data.get("groups", []):
+                groups.append(
+                    GroupSummary(
+                        group=group_data.get("group", "Unknown"),
+                        summary=group_data.get("summary", ""),
+                        keywords=group_data.get("keywords", []),
+                        sentiment=group_data.get("sentiment", ""),
+                    ),
+                )
+            days.append(DaySummary(day=day_data.get("day", "Unknown"), groups=groups))
 
-        # Remove any extra keys from the summary and ensure the correct types
-        for key in summary:
-            if key not in default_summary.__dict__:
-                del summary[key]
-        for key, value in default_summary.__dict__.items():
-            if key not in summary:
-                summary[key] = value
-            if not isinstance(summary[key], type(value)):
-                summary[key] = value
-
-        return SummaryResult(**summary)  # type: ignore[arg-type]
+        return SummaryResult(days=days)
 
     except openai.OpenAIError as err:
         raise HTTPException(
             status_code=500,
-            detail=f"Error with OpenAI Whisper: {err}",
+            detail=f"Error with OpenAI: {err}",
         ) from err
     except Exception as err:
         raise HTTPException(

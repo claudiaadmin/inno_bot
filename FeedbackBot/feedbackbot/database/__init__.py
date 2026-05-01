@@ -22,6 +22,6 @@
 """Database module for Feedback Bot."""
 
 from feedbackbot.database.load import load_transcriptions
-from feedbackbot.database.save import save_audio, save_transcription
+from feedbackbot.database.save import delete_feedback, save_audio, save_transcription
 
-__all__ = ["load_transcriptions", "save_audio", "save_transcription"]
+__all__ = ["delete_feedback", "load_transcriptions", "save_audio", "save_transcription"]

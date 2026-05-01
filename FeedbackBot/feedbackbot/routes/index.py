@@ -40,6 +40,12 @@ templates.env.add_extension(PyPugJSExtension)
 
 
 @index_router.get("/", response_class=HTMLResponse)
-async def get_index(request: Request) -> HTMLResponse:
-    """Serve the index page for recording audio and displaying the transcribed text."""
+async def get_cover(request: Request) -> HTMLResponse:
+    """Serve the cover page with voluntary feedback notice."""
+    return templates.TemplateResponse("cover.pug", {"request": request})
+
+
+@index_router.get("/record", response_class=HTMLResponse)
+async def get_record(request: Request) -> HTMLResponse:
+    """Serve the recording page for recording audio and displaying the transcribed text."""
     return templates.TemplateResponse("index.pug", {"request": request})

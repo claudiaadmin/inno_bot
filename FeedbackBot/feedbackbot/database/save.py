@@ -19,7 +19,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Save audio and transcription data to the database."""
+"""Save and delete audio and transcription data."""
 
 from io import BytesIO
 from pathlib import Path
@@ -78,9 +78,38 @@ def save_transcription(
         feedback_ulid (ULID): The ULID of the feedback.
 
     """
+    # Populate timestamp and day_of_week from ULID
+    ulid_dt = feedback_ulid.datetime
+    transcription.timestamp = ulid_dt.isoformat()
+    transcription.day_of_week = ulid_dt.strftime("%A")
+
     # Save the transcription file
     transcription_path: Path = TRANSCRIPTIONS_DIR / f"{feedback_ulid}.json"
     transcription_path.write_text(
         transcription.model_dump_json(indent=4),
         encoding="utf-8",
     )
+
+
+def delete_feedback(feedback_ulid: ULID) -> bool:
+    """Delete a feedback entry (transcription and audio) by ULID.
+
+    Args:
+    ----
+        feedback_ulid (ULID): The ULID of the feedback to delete.
+
+    Returns:
+    -------
+        bool: True if anything was deleted, False otherwise.
+
+    """
+    deleted = False
+    transcription_path: Path = TRANSCRIPTIONS_DIR / f"{feedback_ulid}.json"
+    if transcription_path.exists():
+        transcription_path.unlink()
+        deleted = True
+    audio_path: Path = RECORDINGS_DIR / f"{feedback_ulid}.m4a"
+    if audio_path.exists():
+        audio_path.unlink()
+        deleted = True
+    return deleted

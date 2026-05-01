@@ -57,13 +57,15 @@ def main() -> None:
     host: str = os.environ.get("HOST", "localhost")
     port: int = int(os.environ.get("PORT", 8000))
     certificates_dir: Path = Path(__file__).parent.parent / "certificates"
-    uvicorn.run(
-        feedback_bot,
-        host=host,
-        port=port,
-        ssl_keyfile=str(certificates_dir / "key.pem"),
-        ssl_certfile=str(certificates_dir / "cert.pem"),
-    )
+    ssl_keyfile: Path = certificates_dir / "key.pem"
+    ssl_certfile: Path = certificates_dir / "cert.pem"
+
+    kwargs: dict = {"host": host, "port": port}
+    if ssl_keyfile.exists() and ssl_certfile.exists():
+        kwargs["ssl_keyfile"] = str(ssl_keyfile)
+        kwargs["ssl_certfile"] = str(ssl_certfile)
+
+    uvicorn.run(feedback_bot, **kwargs)
 
 
 if __name__ == "__main__":

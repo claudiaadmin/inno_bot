@@ -25,34 +25,27 @@ extends layout
 include mixins.pug
 
 block content
-    +header('Feedback Summary')
+    +header('Feedback Bot')
 
-    .container
+    .container.cover-container
         .hero-icon
             svg(xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round")
-                path(d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z")
-                polyline(points="14 2 14 8 20 8")
-                line(x1="16" y1="13" x2="8" y2="13")
-                line(x1="16" y1="17" x2="8" y2="17")
-                polyline(points="10 9 9 9 8 9")
-        h2.section-title Summary Overview
-        p.description View feedback summaries organized by day and group.
-        .filter-group
-            label(for="dayFilter") Filter by Day
-            select#dayFilter
-                option(value="") All Days
-                option(value="Monday") Monday
-                option(value="Tuesday") Tuesday
-                option(value="Wednesday") Wednesday
-                option(value="Thursday") Thursday
-                option(value="Friday") Friday
-                option(value="Saturday") Saturday
-                option(value="Sunday") Sunday
-        button#fetchSummaryButton
+                circle(cx="12" cy="12" r="10")
+                line(x1="12" y1="16" x2="12" y2="12")
+                line(x1="12" y1="8" x2="12.01" y2="8")
+        h2.section-title Welcome
+        p.description We value your honest thoughts about the workshop. Your feedback helps us improve future sessions.
+        .notice-card
+            h3 Before You Begin
+            ul
+                li Your participation is entirely <strong>voluntary</strong>.
+                li You may choose to remain <strong>anonymous</strong> or select a group.
+                li All feedback is used solely for improving our workshops.
+                li You can stop recording at any time.
+        a.start-button(href="/record")
             svg(xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round")
-                polyline(points="1 4 1 10 7 10")
-                path(d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10")
-            span Generate Summary
-
-        #summarySection
-            p.placeholder-text Select a day filter and generate the summary.
+                path(d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z")
+                path(d="M19 10v2a7 7 0 0 1-14 0v-2")
+                line(x1="12" y1="19" x2="12" y2="23")
+                line(x1="8" y1="23" x2="16" y2="23")
+            span Start Recording

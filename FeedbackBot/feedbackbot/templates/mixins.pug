@@ -22,8 +22,12 @@
 
 mixin header(title)
     header
-        h1= title
-        a.summary-button(href="/summary") Summarise Feedback
+        .header-inner
+            h1= title
+            nav
+                a.nav-link(href="/") Home
+                a.nav-link(href="/record") Record
+                a.nav-link(href="/summary") Summary
 
 mixin container
     .container
