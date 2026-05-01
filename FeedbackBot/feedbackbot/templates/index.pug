@@ -1,0 +1,37 @@
+//- coding=utf-8
+//- --------------------------------------------------------------------------------
+//- Project: Feedback Bot
+//- Author: Claudia Dresselhaus
+//- Year: 2024
+//- --------------------------------------------------------------------------------
+//-
+//- This code was generated with the help of AI writing assistants
+//- including GitHub Copilot, ChatGPT, Bing Chat.
+//-
+//- Licensed under the Apache License, Version 2.0 (the "License");
+//- you may not use this file except in compliance with the License.
+//- You may obtain a copy of the License at
+//-
+//-     http://www.apache.org/licenses/LICENSE-2.0
+//-
+//- Unless required by applicable law or agreed to in writing, software
+//- distributed under the License is distributed on an "AS IS" BASIS,
+//- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//- See the License for the specific language governing permissions and
+//- limitations under the License.
+
+extends layout
+
+include mixins.pug
+
+block content
+    +header('Feedback Bot')
+
+    .container
+        //- Feedback button which records and fetches the transcription.
+        p Please provide your feedback about the workshop by stating your thoughts.
+        button#recordButton Start
+        p#status Please press start to begin.
+
+        p Transcription:
+        pre#transcription

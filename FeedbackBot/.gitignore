@@ -1,0 +1,23 @@
+# Pyenv version file
+.python-version
+
+# Poetry environment lock file
+poetry.lock
+
+# Mac OS directory metadata
+.DS_Store
+
+# Virtualenv environment
+.venv
+
+# Python cache directories
+__pycache__
+
+# Database
+data
+
+# Certiticates
+certificates
+
+# Environment variables including api keys
+.env
